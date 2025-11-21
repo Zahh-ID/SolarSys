@@ -67,7 +67,7 @@ const createPlanetMesh = (planet, textureLoader) => {
   }
 
   const mesh = new THREE.Mesh(geometry, material)
-  mesh.position.set(planet.offset, 0, 0)
+  mesh.position.set(planet.offset ?? 0, 0, 0)
 
   if (planet.ring) {
     const ringGeometry = new THREE.TorusGeometry(planet.size * 1.8, planet.size * 0.14, 2, 90)
@@ -96,6 +96,8 @@ export function ARViewer({ planets }) {
   const mindarRef = useRef(null)
   const rendererRef = useRef(null)
   const planetMeshesRef = useRef([])
+  const anchorsRef = useRef([])
+  const visibleSetRef = useRef(new Set())
   const [isStarting, setIsStarting] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -106,7 +108,7 @@ export function ARViewer({ planets }) {
 
   useEffect(() => {
     mutedRef.current = muted
-    if (muted) stopAudio()
+    if (muted) stopAllAudio()
   }, [muted])
 
   useEffect(() => {
@@ -128,21 +130,28 @@ export function ARViewer({ planets }) {
     })
   }
 
-  const playAudio = () => {
+  const playAudioFor = (id) => {
     if (mutedRef.current) return
     ensureAudio()
-    Object.values(audioMapRef.current).forEach((clip) => {
-      if (!clip) return
-      clip.currentTime = 0
-      clip
-        .play()
-        .catch(() => {
-          /* ignore autoplay errors */
-        })
+    const clip = audioMapRef.current[id]
+    if (!clip) return
+    clip.currentTime = 0
+    clip.play().catch(() => {
+      /* ignore autoplay errors */
     })
   }
 
-  const stopAudio = () => {
+  const stopAudioFor = (id) => {
+    const clip = audioMapRef.current[id]
+    if (!clip) return
+    try {
+      clip.pause()
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  const stopAllAudio = () => {
     Object.values(audioMapRef.current).forEach((clip) => {
       try {
         clip.pause()
@@ -153,10 +162,12 @@ export function ARViewer({ planets }) {
   }
 
   const stopAR = async () => {
-    stopAudio()
+    stopAllAudio()
     setStatus('Idle')
     setIsRunning(false)
     planetMeshesRef.current = []
+    anchorsRef.current = []
+    visibleSetRef.current.clear()
 
     if (mindarRef.current) {
       try {
@@ -195,7 +206,7 @@ export function ARViewer({ planets }) {
 
       const mindarThree = new MindARThree({
         container: containerRef.current,
-        imageTargetSrc: '/targets/planets.mind',
+        imageTargetSrc: '/targets/Solarsys.mind',
         uiLoading: 'no',
         uiError: 'no',
         uiScanning: 'no',
@@ -214,39 +225,39 @@ export function ARViewer({ planets }) {
       dir.position.set(1.9, 2.3, 1.2)
       scene.add(dir)
 
-      const anchor = mindarThree.addAnchor(0)
       const textureLoader = new THREE.TextureLoader(mindarThree.loadingManager)
-      const base = new THREE.Group()
+      anchorsRef.current = planets.map((planet, index) => {
+        const anchor = mindarThree.addAnchor(planet.targetIndex ?? index)
+        const base = new THREE.Group()
 
-      const shadowGeometry = new THREE.CircleGeometry(0.8, 64)
-      const shadowMaterial = new THREE.MeshBasicMaterial({
-        color: 0x233049,
-        transparent: true,
-        opacity: 0.18,
-      })
-      const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial)
-      shadow.rotation.x = -Math.PI / 2
-      shadow.position.y = -0.12
-      base.add(shadow)
+        const shadowGeometry = new THREE.CircleGeometry(0.55, 48)
+        const shadowMaterial = new THREE.MeshBasicMaterial({
+          color: 0x233049,
+          transparent: true,
+          opacity: 0.15,
+        })
+        const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial)
+        shadow.rotation.x = -Math.PI / 2
+        shadow.position.y = -0.1
+        base.add(shadow)
 
-      planetMeshesRef.current = planets.map((planet) => {
         const mesh = createPlanetMesh(planet, textureLoader)
-        mesh.position.x = planet.offset
-        mesh.position.y = 0
         base.add(mesh)
-        return { mesh, rotationSpeed: planet.rotationSpeed }
+        planetMeshesRef.current.push({ mesh, rotationSpeed: planet.rotationSpeed })
+
+        anchor.group.add(base)
+        anchor.onTargetFound = () => {
+          visibleSetRef.current.add(planet.id)
+          setStatus(`Locked: ${planet.name}`)
+          playAudioFor(planet.id)
+        }
+        anchor.onTargetLost = () => {
+          visibleSetRef.current.delete(planet.id)
+          setStatus(visibleSetRef.current.size ? 'Locked' : 'Looking for marker')
+          stopAudioFor(planet.id)
+        }
+        return anchor
       })
-
-      anchor.group.add(base)
-
-      anchor.onTargetFound = () => {
-        setStatus('Marker locked')
-        playAudio()
-      }
-      anchor.onTargetLost = () => {
-        setStatus('Looking for marker')
-        stopAudio()
-      }
 
       await mindarThree.start()
       setIsRunning(true)
@@ -295,8 +306,8 @@ export function ARViewer({ planets }) {
         {!isRunning ? (
           <div className="ar-placeholder">
             <p className="eyebrow">Ready</p>
-            <h3>Align your printed marker in view to launch the planets.</h3>
-            <p>Tap Start AR, allow camera access, then point your camera at the marker card.</p>
+            <h3>Each planet is tied to its own marker.</h3>
+            <p>Tap Start AR, allow camera access, then point at any planet marker to see its 3D planet and audio.</p>
           </div>
         ) : null}
       </div>
