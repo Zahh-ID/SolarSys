@@ -129,7 +129,7 @@ function App() {
             <p className="eyebrow">Need more targets?</p>
             <p>
               Create a new <code>.mind</code> file for your own planet artwork using the MindAR CLI, then replace
-              <code>public/targets/Solarsys.mind</code>. Keep the assets high-contrast with distinct borders.
+              <code>public/targets/SolarSys.mind</code>. Keep the assets high-contrast with distinct borders.
             </p>
             <a className="pill primary" href="https://hiukim.github.io/mind-ar-js-doc/tools/compile/" target="_blank">
               Open MindAR target builder
@@ -146,7 +146,7 @@ function App() {
           </div>
           <p className="meta">
             Use these images in the MindAR target builder to generate your combined <code>.mind</code> file, then replace
-            <code> public/targets/Solarsys.mind</code>.
+            <code> public/targets/SolarSys.mind</code>.
           </p>
         </div>
         <div className="marker-grid">
