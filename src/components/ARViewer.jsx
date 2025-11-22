@@ -206,7 +206,7 @@ export function ARViewer({ planets }) {
 
       const mindarThree = new MindARThree({
         container: containerRef.current,
-        imageTargetSrc: '/targets/Solarsys.mind',
+        imageTargetSrc: `/targets/Solarsys.mind?v=${import.meta.env.VITE_TARGET_VERSION ?? '1'}`,
         uiLoading: 'no',
         uiError: 'no',
         uiScanning: 'no',
