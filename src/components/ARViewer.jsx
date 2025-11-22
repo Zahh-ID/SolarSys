@@ -230,7 +230,7 @@ export function ARViewer({ planets }) {
         const anchor = mindarThree.addAnchor(planet.targetIndex ?? index)
         const base = new THREE.Group()
 
-        const shadowGeometry = new THREE.CircleGeometry(0.55, 48)
+        const shadowGeometry = new THREE.CircleGeometry(0.8, 48)
         const shadowMaterial = new THREE.MeshBasicMaterial({
           color: 0x233049,
           transparent: true,
